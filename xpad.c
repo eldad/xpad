@@ -80,6 +80,7 @@
 #define MAP_TRIGGERS_TO_BUTTONS		(1 << 1)
 #define MAP_STICKS_TO_NULL		(1 << 2)
 #define MAP_SELECT_BUTTON		(1 << 3)
+#define MAP_SWAP_BUTTONS_AB_XY  (1 << 4)
 #define DANCEPAD_MAP_CONFIG	(MAP_DPAD_TO_BUTTONS |			\
 				MAP_TRIGGERS_TO_BUTTONS | MAP_STICKS_TO_NULL)
 
@@ -113,6 +114,7 @@ static const struct xpad_device {
 	u8 xtype;
 } xpad_device[] = {
 	{ 0x0079, 0x18d4, "GPD Win 2 X-Box Controller", 0, XTYPE_XBOX360 },
+	{ 0x0079, 0x181c, "EasySMX", MAP_SWAP_BUTTONS_AB_XY, XTYPE_XBOX360 },	/* Doesn't work. */
 	{ 0x044f, 0x0f00, "Thrustmaster Wheel", 0, XTYPE_XBOX },
 	{ 0x044f, 0x0f03, "Thrustmaster Wheel", 0, XTYPE_XBOX },
 	{ 0x044f, 0x0f07, "Thrustmaster, Inc. Controller", 0, XTYPE_XBOX },
@@ -123,7 +125,7 @@ static const struct xpad_device {
 	{ 0x045e, 0x0287, "Microsoft Xbox Controller S", 0, XTYPE_XBOX },
 	{ 0x045e, 0x0288, "Microsoft Xbox Controller S v2", 0, XTYPE_XBOX },
 	{ 0x045e, 0x0289, "Microsoft X-Box pad v2 (US)", 0, XTYPE_XBOX },
-	{ 0x045e, 0x028e, "Microsoft X-Box 360 pad", 0, XTYPE_XBOX360 },
+	{ 0x045e, 0x028e, "Microsoft X-Box 360 pad (EasySMX)", MAP_SWAP_BUTTONS_AB_XY, XTYPE_XBOX360 },	/* Dirty fix, not for general consumption. */
 	{ 0x045e, 0x028f, "Microsoft X-Box 360 pad v2", 0, XTYPE_XBOX360 },
 	{ 0x045e, 0x0291, "Xbox 360 Wireless Receiver (XBOX)", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX360W },
 	{ 0x045e, 0x02d1, "Microsoft X-Box One pad", 0, XTYPE_XBOXONE },
@@ -418,6 +420,7 @@ static const signed short xpad_abs_triggers[] = {
 static const struct usb_device_id xpad_table[] = {
 	{ USB_INTERFACE_INFO('X', 'B', 0) },	/* X-Box USB-IF not approved class */
 	XPAD_XBOX360_VENDOR(0x0079),		/* GPD Win 2 Controller */
+	{ USB_DEVICE(0x0079, 0x181c) },		/* EasySMX, doesn't work, probe doesn't get called. */
 	XPAD_XBOX360_VENDOR(0x044f),		/* Thrustmaster X-Box 360 controllers */
 	XPAD_XBOX360_VENDOR(0x045e),		/* Microsoft X-Box 360 controllers */
 	XPAD_XBOXONE_VENDOR(0x045e),		/* Microsoft X-Box One controllers */
@@ -735,10 +738,20 @@ static void xpad360_process_packet(struct usb_xpad *xpad, struct input_dev *dev,
 	input_report_key(dev, BTN_THUMBR, data[2] & 0x80);
 
 	/* buttons A,B,X,Y,TL,TR and MODE */
-	input_report_key(dev, BTN_A,	data[3] & 0x10);
-	input_report_key(dev, BTN_B,	data[3] & 0x20);
-	input_report_key(dev, BTN_X,	data[3] & 0x40);
-	input_report_key(dev, BTN_Y,	data[3] & 0x80);
+	if (xpad->mapping & MAP_SWAP_BUTTONS_AB_XY) {
+		/* buttons A <-> B, X <-> Y */
+		input_report_key(dev, BTN_B,	data[3] & 0x10);
+		input_report_key(dev, BTN_A,	data[3] & 0x20);
+		input_report_key(dev, BTN_Y,	data[3] & 0x40);
+		input_report_key(dev, BTN_X,	data[3] & 0x80);
+	} else {
+		/* buttons A,B,X,Y */
+		input_report_key(dev, BTN_A,	data[3] & 0x10);
+		input_report_key(dev, BTN_B,	data[3] & 0x20);
+		input_report_key(dev, BTN_X,	data[3] & 0x40);
+		input_report_key(dev, BTN_Y,	data[3] & 0x80);
+	}
+
 	input_report_key(dev, BTN_TL,	data[3] & 0x01);
 	input_report_key(dev, BTN_TR,	data[3] & 0x02);
 	input_report_key(dev, BTN_MODE,	data[3] & 0x04);
