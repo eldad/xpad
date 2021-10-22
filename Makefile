@@ -2,7 +2,7 @@ obj-m = xpad.o
 
 MOK_KEY_DIR ?= /var/lib/shim-signed/mok
 
-KVERSION = $(shell uname -r)
+KVERSION ?= $(shell uname -r)
 MODDESTDIR := /lib/modules/$(KVERSION)/kernel/drivers/input/joystick
 
 .PHONY: all clean sign install
